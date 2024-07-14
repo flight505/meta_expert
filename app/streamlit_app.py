@@ -1,6 +1,7 @@
 import streamlit as st
 import sys
 import os
+from typing import List, Dict
 
 # Add the parent directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -9,41 +10,54 @@ from agents.meta_agent import MetaExpert, State, StateGraph
 
 st.set_page_config(page_title="Meta Expert Chat", layout="wide")
 
-st.title("Meta Expert Chat")
-
 # Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
-
 if "chat_state" not in st.session_state:
     st.session_state.chat_state = State()
+if "workflow" not in st.session_state:
+    st.session_state.workflow = None
 
-# Display chat messages
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+def initialize_workflow():
+    graph = StateGraph(State)
+    agent_kwargs = {
+        "model": "claude-3-5-sonnet-20240620",
+        "server": "claude",
+        "temperature": 0.5
+    }
+    tools_router_agent_kwargs = agent_kwargs.copy()
+    tools_router_agent_kwargs["temperature"] = 0
 
-# Chat input
-if prompt := st.chat_input("What would you like to know?"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
+    graph.add_node("meta_expert", lambda state: MetaExpert(**agent_kwargs).run(state=state))
+    graph.add_node("router", lambda state: Router(**tools_router_agent_kwargs).run(state=state))
+    graph.add_node("no_tool_expert", lambda state: NoToolExpert(**agent_kwargs).run(state=state))
+    graph.add_node("tool_expert", lambda state: ToolExpert(**tools_router_agent_kwargs).run(state=state))
+    graph.add_node("end_chat", lambda state: set_chat_finished(state))
 
-    # Update chat state
-    st.session_state.chat_state["user_input"] = prompt
+    graph.set_entry_point("meta_expert")
+    graph.set_finish_point("end_chat")
 
-    # Process the user input
+    graph.add_edge("meta_expert", "router")
+    graph.add_edge("tool_expert", "meta_expert")
+    graph.add_edge("no_tool_expert", "meta_expert")
+    graph.add_conditional_edges(
+        "router",
+        lambda state: routing_function(state),
+    )
+    return graph.compile()
+
+def process_user_input(user_input: str):
+    st.session_state.chat_state["user_input"] = user_input
     with st.spinner("Thinking..."):
-        for event in workflow.stream(st.session_state.chat_state, {"recursion_limit": 30}):
+        for event in st.session_state.workflow.stream(st.session_state.chat_state, {"recursion_limit": 30}):
             pass
-
-    # Display assistant's response
-    with st.chat_message("assistant"):
-        response = st.session_state.chat_state["meta_prompt"][-1]["content"]
-        st.markdown(response)
+    response = st.session_state.chat_state["meta_prompt"][-1]["content"]
     st.session_state.messages.append({"role": "assistant", "content": response})
 
-# Sidebar for additional information and controls
+# Main layout
+st.title("Meta Expert Chat")
+
+# Sidebar
 with st.sidebar:
     st.subheader("About")
     st.write("This is a Meta Expert Chat system powered by advanced AI agents.")
@@ -51,11 +65,36 @@ with st.sidebar:
     if st.button("Clear Chat"):
         st.session_state.messages = []
         st.session_state.chat_state = State()
+        st.session_state.workflow = initialize_workflow()
         st.experimental_rerun()
 
-# Display conversation history and other relevant information
-with st.expander("Conversation History", expanded=False):
-    st.json(st.session_state.chat_state.get("conversation_history", []))
+# Chat interface
+chat_container = st.container()
 
-with st.expander("Meta Prompt", expanded=False):
-    st.json(st.session_state.chat_state.get("meta_prompt", []))
+# Input area
+user_input = st.chat_input("What would you like to know?")
+
+if user_input:
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    process_user_input(user_input)
+
+# Display chat messages
+with chat_container:
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+# Expandable sections for additional information
+col1, col2 = st.columns(2)
+
+with col1:
+    with st.expander("Conversation History", expanded=False):
+        st.json(st.session_state.chat_state.get("conversation_history", []))
+
+with col2:
+    with st.expander("Meta Prompt", expanded=False):
+        st.json(st.session_state.chat_state.get("meta_prompt", []))
+
+# Initialize workflow if not already done
+if st.session_state.workflow is None:
+    st.session_state.workflow = initialize_workflow()

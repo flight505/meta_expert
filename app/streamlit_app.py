@@ -34,6 +34,43 @@ def routing_function(state: State) -> str:
 
 st.set_page_config(page_title="Meta Expert Chat", layout="wide")
 
+def initialize_workflow():
+    graph = StateGraph(State)
+    agent_kwargs = {
+        "model": "claude-3-5-sonnet-20240620",
+        "server": "claude",
+        "temperature": 0.5,
+    }
+    tools_router_agent_kwargs = agent_kwargs.copy()
+    tools_router_agent_kwargs["temperature"] = 0
+
+    graph.add_node(
+        "meta_expert", lambda state: MetaExpert(**agent_kwargs).run(state=state)
+    )
+    graph.add_node(
+        "router", lambda state: Router(**tools_router_agent_kwargs).run(state=state)
+    )
+    graph.add_node(
+        "no_tool_expert", lambda state: NoToolExpert(**agent_kwargs).run(state=state)
+    )
+    graph.add_node(
+        "tool_expert",
+        lambda state: ToolExpert(**tools_router_agent_kwargs).run(state=state),
+    )
+    graph.add_node("end_chat", lambda state: set_chat_finished(state))
+
+    graph.set_entry_point("meta_expert")
+    graph.set_finish_point("end_chat")
+
+    graph.add_edge("meta_expert", "router")
+    graph.add_edge("tool_expert", "meta_expert")
+    graph.add_edge("no_tool_expert", "meta_expert")
+    graph.add_conditional_edges(
+        "router",
+        lambda state: routing_function(state),
+    )
+    return graph.compile()
+
 # Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -41,8 +78,6 @@ if "chat_state" not in st.session_state:
     st.session_state.chat_state = State()
 if "workflow" not in st.session_state:
     st.session_state.workflow = initialize_workflow()
-
-def initialize_workflow():
     graph = StateGraph(State)
     agent_kwargs = {
         "model": "claude-3-5-sonnet-20240620",

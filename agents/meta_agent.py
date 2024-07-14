@@ -81,8 +81,8 @@ class MetaExpert(BaseAgent[State]):
     
     @log_function(logger)
     def get_conv_history(self, state: State) -> str:
-        conversation_history = state.get("conversation_history")
-        if conversation_history is None or not conversation_history:
+        conversation_history = state.get("conversation_history", [])
+        if not conversation_history:
             return "No conversation history available."
         expert_message_history = get_ai_message_contents(conversation_history)
         print(f"Expert Data Collected: {expert_message_history}")

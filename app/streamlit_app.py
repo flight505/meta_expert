@@ -40,8 +40,7 @@ if "messages" not in st.session_state:
 if "chat_state" not in st.session_state:
     st.session_state.chat_state = State()
 if "workflow" not in st.session_state:
-    st.session_state.workflow = None
-
+    st.session_state.workflow = initialize_workflow()
 
 def initialize_workflow():
     graph = StateGraph(State)
@@ -118,49 +117,35 @@ if __name__ == "__main__":
         # If "run" argument is provided, execute streamlit run
         subprocess.run(["streamlit", "run", __file__])
     else:
-        # Input area
-        default_input = "write a blog on new streamlit Column configuration"
-        user_input = st.chat_input("What would you like to know?")
-
-        # Use the default input if no user input is provided
-        if not user_input:
-            user_input = default_input
-
-        if user_input:
-            st.session_state.messages.append({"role": "user", "content": user_input})
-            process_user_input(user_input)
-
-        # Display chat messages
-        with chat_container:
-            for message in st.session_state.messages:
-                with st.chat_message(message["role"]):
-                    st.markdown(message["content"])
-
-        # Expandable sections for additional information
-        col1, col2 = st.columns(2)
-
-        with col1:
-            with st.expander("Conversation History", expanded=False):
-                st.json(st.session_state.chat_state.get("conversation_history", []))
-
-        with col2:
-            with st.expander("Meta Prompt", expanded=False):
-                st.json(st.session_state.chat_state.get("meta_prompt", []))
-
         print("To run this Streamlit app, use the command:")
         print(f"streamlit run {__file__}")
+else:
+    # This block will run when the script is executed by Streamlit
+    # Input area
+    default_input = "write a blog on new streamlit Column configuration"
+    user_input = st.chat_input("What would you like to know?")
 
-# Initialize workflow
-st.session_state.workflow = initialize_workflow()
+    # Use the default input if no user input is provided
+    if not user_input:
+        user_input = default_input
 
-# Main app logic
-if __name__ == "__main__":
-    import sys
-    import subprocess
+    if user_input:
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        process_user_input(user_input)
 
-    if len(sys.argv) > 1 and sys.argv[1] == "run":
-        # If "run" argument is provided, execute streamlit run
-        subprocess.run(["streamlit", "run", __file__])
-    else:
-        print("To run this Streamlit app, use the command:")
-        print(f"streamlit run {__file__}")
+    # Display chat messages
+    with chat_container:
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+
+    # Expandable sections for additional information
+    col1, col2 = st.columns(2)
+
+    with col1:
+        with st.expander("Conversation History", expanded=False):
+            st.json(st.session_state.chat_state.get("conversation_history", []))
+
+    with col2:
+        with st.expander("Meta Prompt", expanded=False):
+            st.json(st.session_state.chat_state.get("meta_prompt", []))

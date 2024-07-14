@@ -6,7 +6,12 @@ from typing import List, Dict
 # Add the parent directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agents.meta_agent import MetaExpert, State, StateGraph
+from agents.meta_agent import MetaExpert, State, StateGraph, Router, NoToolExpert, ToolExpert, set_chat_finished
+
+def routing_function(state: State) -> str:
+    decision = state["router_decision"]
+    print(f"\n\n Routing function called. Decision: {decision}")
+    return decision
 
 st.set_page_config(page_title="Meta Expert Chat", layout="wide")
 

@@ -342,10 +342,14 @@ class Router(BaseAgent[State]):
         
         return state
     
-# Example usage
-if __name__ == "__main__":
-    from langgraph.graph import StateGraph
+from langgraph.graph import StateGraph
 
+def routing_function(state: State) -> str:
+    decision = state["router_decision"]
+    print(colored(f"\n\n Routing function called. Decision: {decision}", 'red'))
+    return decision
+
+def initialize_workflow():
     # For Claude
     agent_kwargs = {
         "model": "claude-3-5-sonnet-20240620",
@@ -355,11 +359,6 @@ if __name__ == "__main__":
 
     tools_router_agent_kwargs = agent_kwargs.copy()
     tools_router_agent_kwargs["temperature"] = 0
-
-    def routing_function(state: State) -> str:
-        decision = state["router_decision"]
-        print(colored(f"\n\n Routing function called. Decision: {decision}", 'red'))
-        return decision
 
     graph = StateGraph(State)
 
@@ -379,7 +378,11 @@ if __name__ == "__main__":
         "router",
         lambda state: routing_function(state),
     )
-    workflow = graph.compile()
+    return graph.compile()
+
+# Example usage
+if __name__ == "__main__":
+    workflow = initialize_workflow()
 
     while True:
         query = input("Ask me anything: ")

@@ -109,40 +109,51 @@ with st.sidebar:
 # Chat interface
 chat_container = st.container()
 
-# Input area
-default_input = "write a blog on new streamlit Column configuration"
-user_input = st.chat_input("What would you like to know?")
+# Main app logic
+if __name__ == "__main__":
+    import sys
+    import subprocess
 
-# Use the default input if no user input is provided
-if not user_input:
-    user_input = default_input
+    if len(sys.argv) > 1 and sys.argv[1] == "run":
+        # If "run" argument is provided, execute streamlit run
+        subprocess.run(["streamlit", "run", __file__])
+    else:
+        # Input area
+        default_input = "write a blog on new streamlit Column configuration"
+        user_input = st.chat_input("What would you like to know?")
 
-if user_input:
-    st.session_state.messages.append({"role": "user", "content": user_input})
-    process_user_input(user_input)
+        # Use the default input if no user input is provided
+        if not user_input:
+            user_input = default_input
 
-# Display chat messages
-with chat_container:
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+        if user_input:
+            st.session_state.messages.append({"role": "user", "content": user_input})
+            process_user_input(user_input)
 
-# Expandable sections for additional information
-col1, col2 = st.columns(2)
+        # Display chat messages
+        with chat_container:
+            for message in st.session_state.messages:
+                with st.chat_message(message["role"]):
+                    st.markdown(message["content"])
 
-with col1:
-    with st.expander("Conversation History", expanded=False):
-        st.json(st.session_state.chat_state.get("conversation_history", []))
+        # Expandable sections for additional information
+        col1, col2 = st.columns(2)
 
-with col2:
-    with st.expander("Meta Prompt", expanded=False):
-        st.json(st.session_state.chat_state.get("meta_prompt", []))
+        with col1:
+            with st.expander("Conversation History", expanded=False):
+                st.json(st.session_state.chat_state.get("conversation_history", []))
 
-# Initialize workflow if not already done
-if st.session_state.workflow is None:
-    st.session_state.workflow = initialize_workflow()
+        with col2:
+            with st.expander("Meta Prompt", expanded=False):
+                st.json(st.session_state.chat_state.get("meta_prompt", []))
 
-# Check if the script is being run directly
+        print("To run this Streamlit app, use the command:")
+        print(f"streamlit run {__file__}")
+
+# Initialize workflow
+st.session_state.workflow = initialize_workflow()
+
+# Main app logic
 if __name__ == "__main__":
     import sys
     import subprocess
@@ -152,4 +163,4 @@ if __name__ == "__main__":
         subprocess.run(["streamlit", "run", __file__])
     else:
         print("To run this Streamlit app, use the command:")
-        print(f"python {__file__} run")
+        print(f"streamlit run {__file__}")

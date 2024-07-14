@@ -1,17 +1,33 @@
 import streamlit as st
 import sys
 import os
+import logging
 from typing import List, Dict
 
 # Add the parent directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agents.meta_agent import MetaExpert, State, StateGraph, Router, NoToolExpert, ToolExpert, set_chat_finished
+from agents.meta_agent import (
+    MetaExpert,
+    State,
+    StateGraph,
+    Router,
+    NoToolExpert,
+    ToolExpert,
+    set_chat_finished,
+)
+from utils.logging import setup_logging
+
+# Setup logging
+setup_logging(level=logging.DEBUG, log_file="streamlit_app.log")
+logger = logging.getLogger(__name__)
+
 
 def routing_function(state: State) -> str:
     decision = state["router_decision"]
     print(f"\n\n Routing function called. Decision: {decision}")
     return decision
+
 
 st.set_page_config(page_title="Meta Expert Chat", layout="wide")
 
@@ -23,20 +39,30 @@ if "chat_state" not in st.session_state:
 if "workflow" not in st.session_state:
     st.session_state.workflow = None
 
+
 def initialize_workflow():
     graph = StateGraph(State)
     agent_kwargs = {
         "model": "claude-3-5-sonnet-20240620",
         "server": "claude",
-        "temperature": 0.5
+        "temperature": 0.5,
     }
     tools_router_agent_kwargs = agent_kwargs.copy()
     tools_router_agent_kwargs["temperature"] = 0
 
-    graph.add_node("meta_expert", lambda state: MetaExpert(**agent_kwargs).run(state=state))
-    graph.add_node("router", lambda state: Router(**tools_router_agent_kwargs).run(state=state))
-    graph.add_node("no_tool_expert", lambda state: NoToolExpert(**agent_kwargs).run(state=state))
-    graph.add_node("tool_expert", lambda state: ToolExpert(**tools_router_agent_kwargs).run(state=state))
+    graph.add_node(
+        "meta_expert", lambda state: MetaExpert(**agent_kwargs).run(state=state)
+    )
+    graph.add_node(
+        "router", lambda state: Router(**tools_router_agent_kwargs).run(state=state)
+    )
+    graph.add_node(
+        "no_tool_expert", lambda state: NoToolExpert(**agent_kwargs).run(state=state)
+    )
+    graph.add_node(
+        "tool_expert",
+        lambda state: ToolExpert(**tools_router_agent_kwargs).run(state=state),
+    )
     graph.add_node("end_chat", lambda state: set_chat_finished(state))
 
     graph.set_entry_point("meta_expert")
@@ -51,13 +77,17 @@ def initialize_workflow():
     )
     return graph.compile()
 
+
 def process_user_input(user_input: str):
     st.session_state.chat_state["user_input"] = user_input
     with st.spinner("Thinking..."):
-        for event in st.session_state.workflow.stream(st.session_state.chat_state, {"recursion_limit": 30}):
+        for event in st.session_state.workflow.stream(
+            st.session_state.chat_state, {"recursion_limit": 30}
+        ):
             pass
     response = st.session_state.chat_state["meta_prompt"][-1]["content"]
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 # Main layout
 st.title("Meta Expert Chat")
@@ -66,7 +96,7 @@ st.title("Meta Expert Chat")
 with st.sidebar:
     st.subheader("About")
     st.write("This is a Meta Expert Chat system powered by advanced AI agents.")
-    
+
     if st.button("Clear Chat"):
         st.session_state.messages = []
         st.session_state.chat_state = State()
@@ -77,7 +107,8 @@ with st.sidebar:
 chat_container = st.container()
 
 # Input area
-user_input = st.chat_input("What would you like to know?")
+default_input = "write a blog on new streamlit Column configuration"
+user_input = st.chat_input("What would you like to know?", value=default_input)
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})

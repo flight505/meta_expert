@@ -5,7 +5,7 @@ import os
 # Add the parent directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from agents.meta_agent import MetaExpert, State, workflow
+from agents.meta_agent import MetaExpert, State, StateGraph
 
 st.set_page_config(page_title="Meta Expert Chat", layout="wide")
 

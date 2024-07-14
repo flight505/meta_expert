@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# To run this app, use the command: streamlit run app/streamlit_app.py
+
 import streamlit as st
 import sys
 import os

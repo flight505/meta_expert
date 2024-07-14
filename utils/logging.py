@@ -6,15 +6,23 @@ from functools import wraps
 import time
 from typing import Callable, Any, Union
 import json
+import os
 
-def setup_logging(level=logging.INFO, log_file=None):
+def setup_logging(level=logging.INFO, log_file='app.log'):
     """
     Set up logging configuration with colored output and improved formatting.
     
     Args:
     level (int): The logging level (e.g., logging.DEBUG, logging.INFO)
-    log_file (str, optional): Path to a log file. If None, log to console only.
+    log_file (str): Path to a log file. Default is 'app.log' in the parent directory.
     """
+    log_dir = os.path.dirname(os.path.abspath(__file__))
+    log_path = os.path.join(log_dir, '..', log_file)
+    
+    # Remove existing log file if it exists
+    if os.path.exists(log_path):
+        os.remove(log_path)
+
     formatter = colorlog.ColoredFormatter(
         "%(log_color)s%(levelname)-8s%(reset)s %(blue)s%(asctime)s%(reset)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
@@ -37,11 +45,10 @@ def setup_logging(level=logging.INFO, log_file=None):
     logger.setLevel(level)
     logger.addHandler(console_handler)
 
-    if log_file:
-        file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(file_formatter)
-        logger.addHandler(file_handler)
+    file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    file_handler = logging.FileHandler(log_path)
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
 
 def format_dict(d, indent=0):
     """Format a dictionary for pretty printing."""

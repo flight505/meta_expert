@@ -346,49 +346,12 @@ class Router(BaseAgent[State]):
 if __name__ == "__main__":
     from langgraph.graph import StateGraph
 
-
     # For Claude
     agent_kwargs = {
         "model": "claude-3-5-sonnet-20240620",
         "server": "claude",
         "temperature": 0.5
     }
-
-    # For OpenAI
-    # agent_kwargs = {
-    #     "model": "gpt-4o",
-    #     "server": "openai",
-    #     "temperature": 0.5
-    # }
-
-    # Ollama
-    # agent_kwargs = {
-    #     "model": "phi3:instruct",
-    #     "server": "ollama",
-    #     "temperature": 0.5
-    # }
-
-    # Groq
-    # agent_kwargs = {
-    #     "model": "mixtral-8x7b-32768",
-    #     "server": "groq",
-    #     "temperature": 0.5
-    # }
-
-    # # Gemnin - Not currently working, I will be debugging this soon.
-    # agent_kwargs = {
-    #     "model": "gemini-1.5-pro",
-    #     "server": "gemini",
-    #     "temperature": 0.5
-    # }
-
-    # # Vllm
-    # agent_kwargs = {
-    #     "model": "meta-llama/Meta-Llama-3-70B-Instruct",
-    #     "server": "vllm",
-    #     "temperature": 0.5,
-    #     "model_endpoint": "https://vpzatdgopr2pmx-8000.proxy.runpod.net/",
-    # }
 
     tools_router_agent_kwargs = agent_kwargs.copy()
     tools_router_agent_kwargs["temperature"] = 0
@@ -423,7 +386,7 @@ if __name__ == "__main__":
         if query.lower() == "exit":
             break
 
-        # current_time = datetime.now()
+        state = State()
         state["user_input"] = query
         limit = {"recursion_limit": 30}
 

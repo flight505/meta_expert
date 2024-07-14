@@ -111,7 +111,11 @@ chat_container = st.container()
 
 # Input area
 default_input = "write a blog on new streamlit Column configuration"
-user_input = st.chat_input("What would you like to know?", value=default_input)
+user_input = st.chat_input("What would you like to know?")
+
+# Use the default input if no user input is provided
+if not user_input:
+    user_input = default_input
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
@@ -137,3 +141,15 @@ with col2:
 # Initialize workflow if not already done
 if st.session_state.workflow is None:
     st.session_state.workflow = initialize_workflow()
+
+# Check if the script is being run directly
+if __name__ == "__main__":
+    import sys
+    import subprocess
+
+    if len(sys.argv) > 1 and sys.argv[1] == "run":
+        # If "run" argument is provided, execute streamlit run
+        subprocess.run(["streamlit", "run", __file__])
+    else:
+        print("To run this Streamlit app, use the command:")
+        print(f"python {__file__} run")

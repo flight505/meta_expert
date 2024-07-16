@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
 # To run this app, use the command: streamlit run app/streamlit_app.py
 
-import streamlit as st
-import sys
-import os
 import logging
-from typing import List, Dict
+import os
+import sys
+from typing import Dict
+
+import streamlit as st
 
 # Add the parent directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agents.meta_agent import (
     MetaExpert,
+    NoToolExpert,
+    Router,
     State,
     StateGraph,
-    Router,
-    NoToolExpert,
     ToolExpert,
     set_chat_finished,
 )
@@ -28,14 +29,15 @@ logger = logging.getLogger(__name__)
 
 def routing_function(state: State) -> str:
     decision = state["router_decision"]
-    print(f"\n\n Routing function called. Decision: {decision}")
+    logger.debug(f"Routing function called. Decision: {decision}")
     return decision
 
 
 st.set_page_config(page_title="Meta Expert Chat", layout="wide")
 
+
 def initialize_workflow():
-    graph = StateGraph(State)
+    graph = StateGraph()
     agent_kwargs = {
         "model": "claude-3-5-sonnet-20240620",
         "server": "claude",
@@ -44,20 +46,11 @@ def initialize_workflow():
     tools_router_agent_kwargs = agent_kwargs.copy()
     tools_router_agent_kwargs["temperature"] = 0
 
-    graph.add_node(
-        "meta_expert", lambda state: MetaExpert(**agent_kwargs).run(state=state)
-    )
-    graph.add_node(
-        "router", lambda state: Router(**tools_router_agent_kwargs).run(state=state)
-    )
-    graph.add_node(
-        "no_tool_expert", lambda state: NoToolExpert(**agent_kwargs).run(state=state)
-    )
-    graph.add_node(
-        "tool_expert",
-        lambda state: ToolExpert(**tools_router_agent_kwargs).run(state=state),
-    )
-    graph.add_node("end_chat", lambda state: set_chat_finished(state))
+    graph.add_node("meta_expert", MetaExpert(**agent_kwargs))
+    graph.add_node("router", Router(**tools_router_agent_kwargs))
+    graph.add_node("no_tool_expert", NoToolExpert(**agent_kwargs))
+    graph.add_node("tool_expert", ToolExpert(**tools_router_agent_kwargs))
+    graph.add_node("end_chat", set_chat_finished)
 
     graph.set_entry_point("meta_expert")
     graph.set_finish_point("end_chat")
@@ -65,11 +58,10 @@ def initialize_workflow():
     graph.add_edge("meta_expert", "router")
     graph.add_edge("tool_expert", "meta_expert")
     graph.add_edge("no_tool_expert", "meta_expert")
-    graph.add_conditional_edges(
-        "router",
-        lambda state: routing_function(state),
-    )
-    return graph.compile()
+    graph.add_conditional_edge("router", routing_function)
+
+    return graph
+
 
 # Initialize session state
 if "messages" not in st.session_state:
@@ -78,51 +70,12 @@ if "chat_state" not in st.session_state:
     st.session_state.chat_state = State()
 if "workflow" not in st.session_state:
     st.session_state.workflow = initialize_workflow()
-    graph = StateGraph(State)
-    agent_kwargs = {
-        "model": "claude-3-5-sonnet-20240620",
-        "server": "claude",
-        "temperature": 0.5,
-    }
-    tools_router_agent_kwargs = agent_kwargs.copy()
-    tools_router_agent_kwargs["temperature"] = 0
-
-    graph.add_node(
-        "meta_expert", lambda state: MetaExpert(**agent_kwargs).run(state=state)
-    )
-    graph.add_node(
-        "router", lambda state: Router(**tools_router_agent_kwargs).run(state=state)
-    )
-    graph.add_node(
-        "no_tool_expert", lambda state: NoToolExpert(**agent_kwargs).run(state=state)
-    )
-    graph.add_node(
-        "tool_expert",
-        lambda state: ToolExpert(**tools_router_agent_kwargs).run(state=state),
-    )
-    graph.add_node("end_chat", lambda state: set_chat_finished(state))
-
-    graph.set_entry_point("meta_expert")
-    graph.set_finish_point("end_chat")
-
-    graph.add_edge("meta_expert", "router")
-    graph.add_edge("tool_expert", "meta_expert")
-    graph.add_edge("no_tool_expert", "meta_expert")
-    graph.add_conditional_edges(
-        "router",
-        lambda state: routing_function(state),
-    )
-    return graph.compile()
 
 
 def process_user_input(user_input: str):
     st.session_state.chat_state["user_input"] = user_input
     with st.spinner("Thinking..."):
-        for event in st.session_state.workflow.stream(
-            st.session_state.chat_state, {"recursion_limit": 30}
-        ):
-            pass
-    response = st.session_state.chat_state["meta_prompt"][-1]["content"]
+        response = st.session_state.workflow.process(st.session_state.chat_state)
     st.session_state.messages.append({"role": "assistant", "content": response})
 
 
@@ -143,44 +96,27 @@ with st.sidebar:
 # Chat interface
 chat_container = st.container()
 
-# Main app logic
-if __name__ == "__main__":
-    import sys
-    import subprocess
+# Input area
+default_input = "write a blog on new streamlit Column configuration"
+user_input = st.text_input("What would you like to know?", value=default_input)
 
-    if len(sys.argv) > 1 and sys.argv[1] == "run":
-        # If "run" argument is provided, execute streamlit run
-        subprocess.run(["streamlit", "run", __file__])
-    else:
-        print("To run this Streamlit app, use the command:")
-        print(f"streamlit run {__file__}")
-else:
-    # This block will run when the script is executed by Streamlit
-    # Input area
-    default_input = "write a blog on new streamlit Column configuration"
-    user_input = st.chat_input("What would you like to know?")
+if user_input:
+    st.session_state.messages.append({"role": "user", "content": user_input})
+    process_user_input(user_input)
 
-    # Use the default input if no user input is provided
-    if not user_input:
-        user_input = default_input
+# Display chat messages
+with chat_container:
+    for message in st.session_state.messages:
+        with st.container():
+            st.write(f"{message['role'].capitalize()}: {message['content']}")
 
-    if user_input:
-        st.session_state.messages.append({"role": "user", "content": user_input})
-        process_user_input(user_input)
+# Expandable sections for additional information
+col1, col2 = st.columns(2)
 
-    # Display chat messages
-    with chat_container:
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+with col1:
+    with st.expander("Conversation History", expanded=False):
+        st.json(st.session_state.chat_state.get("conversation_history", []))
 
-    # Expandable sections for additional information
-    col1, col2 = st.columns(2)
-
-    with col1:
-        with st.expander("Conversation History", expanded=False):
-            st.json(st.session_state.chat_state.get("conversation_history", []))
-
-    with col2:
-        with st.expander("Meta Prompt", expanded=False):
-            st.json(st.session_state.chat_state.get("meta_prompt", []))
+with col2:
+    with st.expander("Meta Prompt", expanded=False):
+        st.json(st.session_state.chat_state.get("meta_prompt", []))

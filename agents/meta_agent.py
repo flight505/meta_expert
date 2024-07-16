@@ -82,8 +82,6 @@ class MetaExpert(BaseAgent[State]):
     @log_function(logger)
     def get_conv_history(self, state: State) -> str:
         conversation_history = state.get("conversation_history", [])
-        if not conversation_history:
-            return "No conversation history available."
         expert_message_history = get_ai_message_contents(conversation_history)
         print(f"Expert Data Collected: {expert_message_history}")
         expert_message_history = f"Expert Data Collected: <Ex>{expert_message_history}</Ex>"
@@ -344,14 +342,11 @@ class Router(BaseAgent[State]):
         
         return state
     
-from langgraph.graph import StateGraph
+# Example usage
+if __name__ == "__main__":
+    from langgraph.graph import StateGraph
 
-def routing_function(state: State) -> str:
-    decision = state["router_decision"]
-    print(colored(f"\n\n Routing function called. Decision: {decision}", 'red'))
-    return decision
 
-def initialize_workflow():
     # For Claude
     agent_kwargs = {
         "model": "claude-3-5-sonnet-20240620",
@@ -359,8 +354,49 @@ def initialize_workflow():
         "temperature": 0.5
     }
 
+    # For OpenAI
+    # agent_kwargs = {
+    #     "model": "gpt-4o",
+    #     "server": "openai",
+    #     "temperature": 0.5
+    # }
+
+    # Ollama
+    # agent_kwargs = {
+    #     "model": "phi3:instruct",
+    #     "server": "ollama",
+    #     "temperature": 0.5
+    # }
+
+    # Groq
+    # agent_kwargs = {
+    #     "model": "mixtral-8x7b-32768",
+    #     "server": "groq",
+    #     "temperature": 0.5
+    # }
+
+    # # Gemnin - Not currently working, I will be debugging this soon.
+    # agent_kwargs = {
+    #     "model": "gemini-1.5-pro",
+    #     "server": "gemini",
+    #     "temperature": 0.5
+    # }
+
+    # # Vllm
+    # agent_kwargs = {
+    #     "model": "meta-llama/Meta-Llama-3-70B-Instruct",
+    #     "server": "vllm",
+    #     "temperature": 0.5,
+    #     "model_endpoint": "https://vpzatdgopr2pmx-8000.proxy.runpod.net/",
+    # }
+
     tools_router_agent_kwargs = agent_kwargs.copy()
     tools_router_agent_kwargs["temperature"] = 0
+
+    def routing_function(state: State) -> str:
+        decision = state["router_decision"]
+        print(colored(f"\n\n Routing function called. Decision: {decision}", 'red'))
+        return decision
 
     graph = StateGraph(State)
 
@@ -380,18 +416,14 @@ def initialize_workflow():
         "router",
         lambda state: routing_function(state),
     )
-    return graph.compile()
-
-# Example usage
-if __name__ == "__main__":
-    workflow = initialize_workflow()
+    workflow = graph.compile()
 
     while True:
         query = input("Ask me anything: ")
         if query.lower() == "exit":
             break
 
-        state = State()
+        # current_time = datetime.now()
         state["user_input"] = query
         limit = {"recursion_limit": 30}
 

@@ -59,7 +59,7 @@ def set_chat_finished(state: State) -> bool:
     return state
 
 class MetaExpert(BaseAgent[State]):
-    def __init__(self, model: str = None, server: str = None, temperature: float = 0):
+    def __init__(self, model: str = None, server: str = None, temperature: float = 0,
                  model_endpoint: str = None, stop: str = None):
         super().__init__(model, server, temperature, model_endpoint, stop)
         self.llm = self.get_llm(json_model=False)

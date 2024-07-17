@@ -59,7 +59,7 @@ def set_chat_finished(state: State) -> bool:
     return state
 
 class MetaExpert(BaseAgent[State]):
-    def __init__(self, model: str = None, server: str = None, temperature: float = 0,
+    def __init__(self, model: str = None, server: str = None, temperature: float = 0, 
                  model_endpoint: str = None, stop: str = None):
         super().__init__(model, server, temperature, model_endpoint, stop)
         self.llm = self.get_llm(json_model=False)
@@ -99,16 +99,6 @@ class MetaExpert(BaseAgent[State]):
 
     @log_function(logger)
     def run(self, state: State) -> State:
-        logger.info("Running MetaExpert")
-        user_input = state.get("user_input", "")
-        if not user_input:
-            logger.warning("No user input provided")
-            return state
-
-        response = self.invoke(state, human_in_loop=False, user_input=user_input)
-        state = self.update_state("assistant_response", response, state)
-        logger.info(f"MetaExpert response: {response}")
-        return state
 
         user_input = state.get("user_input")
         state = self.invoke(state=state, user_input=user_input)
